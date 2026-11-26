@@ -9,6 +9,11 @@ on:
     workflows: ["每日股票分析"]
     types: [completed]
   workflow_dispatch:
+    inputs:
+      run_id:
+        description: '要发布的「每日股票分析」运行 ID（留空则只刷新站点，不导入报告）'
+        required: false
+        default: ''
 
 concurrency:
   group: publish-reports
@@ -24,10 +29,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: 下载本次分析产物
-        if: github.event_name == 'workflow_run'
+        if: github.event_name == 'workflow_run' || inputs.run_id != ''
         uses: actions/download-artifact@v4
         with:
-          run-id: ${{ github.event.workflow_run.id }}
+          pattern: analysis-reports-*
+          merge-multiple: true
+          run-id: ${{ inputs.run_id || github.event.workflow_run.id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path: artifact
 
@@ -102,7 +109,8 @@ jobs:
           python3 - <<'PY'
           import pathlib, datetime, markdown
 
-          src = pathlib.Path("artifact/reports")
+          art = pathlib.Path("artifact")
+          srcs = sorted(p for p in art.rglob("*.md") if p.parent.name == "reports") if art.exists() else []
           out = pathlib.Path("site")
           out.mkdir(parents=True, exist_ok=True)
 
@@ -119,8 +127,8 @@ jobs:
           </div></body></html>"""
 
           n = 0
-          if src.exists():
-              for f in sorted(src.glob("*.md")):
+          if srcs:
+              for f in srcs:
                   text = f.read_text(encoding="utf-8")
                   body = markdown.markdown(text, extensions=["tables", "fenced_code", "sane_lists"])
                   name = f.stem
@@ -168,14 +176,4 @@ jobs:
           {body}
           <div class="footer">daily_stock_analysis · 仅供学习研究，不构成投资建议</div>
           </div></body></html>"""
-          (site / "index.html").write_text(page, encoding="utf-8")
-          print(f"首页已生成，共 {len(items)} 天")
-          PY
-
-      - name: 发布到 gh-pages
-        uses: peaceiris/actions-gh-pages@v4
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./site
-          publish_branch: gh-pages
-          keep_files: true
+          (site / "index.html").write_text(pa

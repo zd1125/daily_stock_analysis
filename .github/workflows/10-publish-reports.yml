@@ -162,8 +162,9 @@ jobs:
                       links.append(f'<a class="btn market" href="{name}">📉 大盘复盘</a>')
                   else:
                       links.append(f'<a class="btn" href="{name}">📈 个股分析</a>')
+              links_html = "".join(links)
               rows.append(f'<div class="card"><div class="date">{d}</div>'
-                          f'<div class="links">{"".join(links)}</div></div>')
+                          f'<div class="links">{links_html}</div></div>')
 
           body = "\n".join(rows) if rows else '<div class="empty">还没有报告，等待第一次分析运行完成</div>'
           page = f"""<!DOCTYPE html>
@@ -176,4 +177,14 @@ jobs:
           {body}
           <div class="footer">daily_stock_analysis · 仅供学习研究，不构成投资建议</div>
           </div></body></html>"""
-          (site / "index.html").write_text(pa
+          (site / "index.html").write_text(page, encoding="utf-8")
+          print(f"首页已生成，共 {len(items)} 天")
+          PY
+
+      - name: 发布到 gh-pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./site
+          publish_branch: gh-pages
+          keep_files: true
